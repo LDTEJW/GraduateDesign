@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0" version="29.3.4">
+  <diagram id="AeVYOnA2unG00cVSkWjg" name="第 1 页">
+    <mxGraphModel dx="1281" dy="614" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b9CvbZC8rtYeat77_dzO-6" edge="1" parent="1" source="b9CvbZC8rtYeat77_dzO-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="b9CvbZC8rtYeat77_dzO-9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b9CvbZC8rtYeat77_dzO-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;特征体系构建&lt;/b&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="67" width="141" x="343" y="71" as="geometry" />
+        </mxCell>
+        <mxCell id="b9CvbZC8rtYeat77_dzO-8" edge="1" parent="1" source="b9CvbZC8rtYeat77_dzO-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="b9CvbZC8rtYeat77_dzO-11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b9CvbZC8rtYeat77_dzO-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;混合基模型设计&lt;/b&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="67" width="141" x="343" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="b9CvbZC8rtYeat77_dzO-10" edge="1" parent="1" source="b9CvbZC8rtYeat77_dzO-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="b9CvbZC8rtYeat77_dzO-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b9CvbZC8rtYeat77_dzO-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;自适应集成模型&lt;/b&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="67" width="141" x="343" y="269" as="geometry" />
+        </mxCell>
+        <mxCell id="b9CvbZC8rtYeat77_dzO-12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;系统评估&lt;/b&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="67" width="141" x="343" y="368" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
