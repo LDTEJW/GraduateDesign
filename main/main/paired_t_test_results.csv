@@ -1,0 +1,2 @@
+,sample_size,mean_difference,std_difference,t_statistic,p_value,ci_lower,ci_upper,effect_size,normality_test_p,wilcoxon_statistic,wilcoxon_p
+0,388303,0.020119927310843475,0.08873797021076324,141.2870280323357,0.0,0.01984081848981453,0.02039903613187242,0.22673413943384385,0.0,23691942161.5,0.0
