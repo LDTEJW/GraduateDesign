@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>航班延误预测</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <div class="wrap">
+    <header class="site-head">
+      <p class="kicker">Air delay · ensemble</p>
+      <h1 class="site-title">航班到达延误预测</h1>
+      <p class="site-desc">LSTM + XGBoost 集成模型。上传含航班字段的 CSV，可选含 ARR_DELAY 以评估指标。</p>
+    </header>
+
+    <section class="panel" aria-labelledby="upload-label">
+      <h2 class="panel-h" id="upload-label">数据</h2>
+      <div class="drop" id="dropZone" role="button" tabindex="0" aria-label="上传 CSV 文件">
+        <div class="drop-inner">
+          <div class="drop-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+          </div>
+          <p class="drop-text">拖拽至此，或 <strong>点击选择</strong> CSV</p>
+          <p class="drop-meta">必要列：FL_DATE, AIRLINE_CODE, ORIGIN, DEST, CRS_DEP_TIME, DEP_DELAY · 可选 ARR_DELAY 用于评估</p>
+        </div>
+        <input type="file" id="fileInput" class="hidden-input" accept=".csv">
+      </div>
+      <div id="fileInfo" class="file-pill" hidden></div>
+      <div class="actions">
+        <button type="button" class="btn" id="predictBtn" disabled>开始预测</button>
+      </div>
+    </section>
+
+    <div class="loader-wrap" id="loading" aria-live="polite" aria-busy="false">
+      <div class="loader" aria-hidden="true">
+        <div class="loader-ring"></div>
+        <div class="loader-dot"></div>
+      </div>
+      <p class="loader-text">模型推理中<span class="loader-dots"></span></p>
+    </div>
+
+    <div class="results" id="resultsSection">
+      <section class="panel">
+        <h2 class="panel-h">摘要</h2>
+        <div class="metrics" id="summaryMetrics"></div>
+      </section>
+
+      <section class="panel is-hidden" id="perfPanel">
+        <h2 class="panel-h">评估指标</h2>
+        <div class="metrics" id="performanceMetrics"></div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-h">图表</h2>
+        <div class="charts" id="chartsContainer"></div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-h">明细 · 前 50 条</h2>
+        <div class="table-scroll">
+          <table class="prediction-table" id="predictionTable">
+            <thead>
+              <tr>
+                <th>序号</th>
+                <th>预测延误(分钟)</th>
+                <th>实际延误(分钟)</th>
+                <th>误差(分钟)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <footer>Flight delay prediction</footer>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (function () {
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+      const fileInfo = document.getElementById('fileInfo');
+      const predictBtn = document.getElementById('predictBtn');
+      const loading = document.getElementById('loading');
+      const resultsSection = document.getElementById('resultsSection');
+      const toast = document.getElementById('toast');
+      let selectedFile = null;
+
+      function showToast(msg, duration = 4200) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove('show'), duration);
+      }
+
+      function fmtNum(v, digits = 2) {
+        if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
+        return Number(v).toLocaleString('zh-CN', {
+          minimumFractionDigits: digits,
+          maximumFractionDigits: digits
+        });
+      }
+
+      function fmtInt(v) {
+        if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
+        return Number(v).toLocaleString('zh-CN');
+      }
+
+      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          fileInput.click();
+        }
+      });
+      ['dragover', 'dragenter'].forEach((ev) => {
+        dropZone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          dropZone.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach((ev) => {
+        dropZone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          if (ev !== 'drop') dropZone.classList.remove('dragover');
+        });
+      });
+      dropZone.addEventListener('drop', (e) => {
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) handleFile(e.target.files[0]);
+      });
+
+      function handleFile(file) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+          showToast('请上传 CSV 文件');
+          return;
+        }
+        selectedFile = file;
+        fileInfo.hidden = false;
+        fileInfo.textContent = file.name + ' · ' + (file.size / 1024 / 1024).toFixed(2) + ' MB';
+        predictBtn.disabled = false;
+      }
+
+      predictBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        predictBtn.disabled = true;
+        loading.classList.add('active');
+        loading.setAttribute('aria-busy', 'true');
+        resultsSection.classList.remove('visible');
+
+        try {
+          const res = await fetch('/predict', { method: 'POST', body: formData });
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok) {
+            showToast(data.error || ('请求失败 ' + res.status));
+            return;
+          }
+          if (!data.success) {
+            showToast(data.error || '预测失败');
+            return;
+          }
+          displayResults(data);
+          resultsSection.classList.add('visible');
+          requestAnimationFrame(() => resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        } catch (err) {
+          showToast('请求失败: ' + (err.message || String(err)));
+        } finally {
+          predictBtn.disabled = false;
+          loading.classList.remove('active');
+          loading.setAttribute('aria-busy', 'false');
+        }
+      });
+
+      function displayResults(data) {
+        const s = data.summary || {};
+        document.getElementById('summaryMetrics').innerHTML = [
+          ['预测条数', fmtInt(s.total_predictions)],
+          ['平均延误', fmtNum(s.avg_pred_delay)],
+          ['标准差', fmtNum(s.std_pred_delay)],
+          ['最小', fmtNum(s.min_pred_delay)],
+          ['最大', fmtNum(s.max_pred_delay)]
+        ].map(([lbl, val]) =>
+          '<div class="metric"><div class="metric-val">' + val + '</div><div class="metric-lbl">' + lbl + '</div></div>'
+        ).join('');
+
+        const metrics = data.metrics || {};
+        const perfPanel = document.getElementById('perfPanel');
+        if (metrics.MAE !== undefined && metrics.MAE !== null) {
+          perfPanel.classList.remove('is-hidden');
+          const r2 = metrics.R2;
+          const r2Pct = r2 !== null && r2 !== undefined && !Number.isNaN(Number(r2))
+            ? (Number(r2) * 100).toFixed(2) + '%'
+            : '—';
+          document.getElementById('performanceMetrics').innerHTML = [
+            ['MAE', fmtNum(metrics.MAE, 2) + ' 分'],
+            ['RMSE', fmtNum(metrics.RMSE, 2) + ' 分'],
+            ['R²', r2Pct],
+            ['评估样本', fmtInt(metrics['样本数'])]
+          ].map(([lbl, val]) =>
+            '<div class="metric"><div class="metric-val">' + val + '</div><div class="metric-lbl">' + lbl + '</div></div>'
+          ).join('');
+        } else {
+          perfPanel.classList.add('is-hidden');
+        }
+
+        const charts = data.charts || {};
+        const chartsContainer = document.getElementById('chartsContainer');
+        const keys = ['scatter', 'error_dist', 'error_box'];
+        const titles = { scatter: '预测 vs 实际', error_dist: '误差分布', error_box: '分组误差' };
+        if (keys.some((k) => charts[k])) {
+          chartsContainer.innerHTML = keys
+            .filter((k) => charts[k])
+            .map(
+              (k) =>
+                '<div class="chart-box"><h4>' +
+                titles[k] +
+                '</h4><img alt="' +
+                titles[k] +
+                '" src="data:image/png;base64,' +
+                charts[k] +
+                '"></div>'
+            )
+            .join('');
+        } else {
+          chartsContainer.innerHTML =
+            '<div class="chart-empty">无真实标签（ARR_DELAY）时仅生成预测摘要与明细；上传含 ARR_DELAY 的 CSV 可显示图表与评估指标。</div>';
+        }
+
+        const tbody = document.querySelector('#predictionTable tbody');
+        tbody.innerHTML = '';
+        (data.table_data || []).forEach((row) => {
+          const tr = document.createElement('tr');
+          const pred = row['预测延误(分钟)'];
+          const act = row['实际延误(分钟)'];
+          const err = row['误差(分钟)'];
+          tr.innerHTML =
+            '<td>' +
+            row['序号'] +
+            '</td><td>' +
+            fmtNum(pred, 2) +
+            '</td><td>' +
+            (act !== undefined && act !== null ? fmtNum(act, 2) : '—') +
+            '</td><td>' +
+            (err !== undefined && err !== null ? fmtNum(err, 2) : '—') +
+            '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
